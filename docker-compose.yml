@@ -1,0 +1,46 @@
+services:
+  gateway:
+    build:
+      context: .
+    volumes:
+      - ./conf/conf.d:/etc/nginx/conf.d:ro
+      - ./conf/snippets:/etc/nginx/snippets:ro
+      - ./dist:/var/www/virtual/sitename.zone/htdocs:ro
+      - ./letsencrypt/sitename.zone/.well-known:/var/www/virtual/sitename.zone/htdocs/.well-known:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    healthcheck:
+      test: curl --fail http://127.0.0.1/ping || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: on-failure
+    depends_on:
+      - api
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      - default
+      - internal
+  api:
+    build:
+      context: ./api
+    environment:
+      - SERVER_PORT=3000
+      - SERVER_HOST=0.0.0.0
+    healthcheck:
+      test: curl --fail http://127.0.0.1/api/ping || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: on-failure
+    networks:
+      - internal
+    
+networks:
+  default:
+    driver: bridge
+  internal:
+    internal: true
