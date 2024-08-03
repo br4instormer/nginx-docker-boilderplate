@@ -2,12 +2,14 @@ services:
   gateway:
     build:
       context: .
+      dockerfile: .docker/nginx/Dockerfile
     volumes:
-      - ./conf/conf.d:/etc/nginx/conf.d:ro
-      - ./conf/snippets:/etc/nginx/snippets:ro
-      - ./dist:/var/www/virtual/sitename.zone/htdocs:ro
-      - ./letsencrypt/sitename.zone/.well-known:/var/www/virtual/sitename.zone/htdocs/.well-known:ro
+      - .docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - .docker/nginx/snippets:/etc/nginx/snippets:ro
+      - ./dist:/var/www/virtual/${DOMAIN}/htdocs:ro
+      - .docker/letsencrypt/${DOMAIN}/.well-known:/var/www/virtual/${DOMAIN}/htdocs/.well-known:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
+      - php-fpm:/run/php:rw
     healthcheck:
       test: curl --fail http://127.0.0.1/ping || exit 1
       interval: 10s
@@ -17,6 +19,7 @@ services:
     restart: on-failure
     depends_on:
       - api
+      - php-fpm
     ports:
       - 80:80
       - 443:443
@@ -38,9 +41,19 @@ services:
     restart: on-failure
     networks:
       - internal
+  php-fpm:
+    build:
+      context: .docker/php-fpm
+    volumes:
+      - .docker/php-fpm/php-fpm.d/zz-docker.conf:/usr/local/etc/php-fpm.d/zz-docker.conf:ro
+      - .docker/php-fpm/php-fpm.d/www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
+      - ./dist:/var/www/html:rw
+      - php-fpm:/run/php:rw
     
 networks:
   default:
     driver: bridge
   internal:
     internal: true
+volumes:
+  php-fpm:
